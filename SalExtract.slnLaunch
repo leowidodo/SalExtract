@@ -1,0 +1,9 @@
+[
+  {
+    "Name": "SalExtract",
+    "Projects": [
+      { "Path": "src\\SalExtract.Api\\SalExtract.Api.csproj", "Action": "Start" },
+      { "Path": "src\\SalExtract.Web\\SalExtract.Web.csproj", "Action": "Start" }
+    ]
+  }
+]

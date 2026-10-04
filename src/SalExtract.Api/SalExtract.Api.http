@@ -1,0 +1,6 @@
+@SalExtract.Api_HostAddress = http://localhost:5078
+
+GET {{SalExtract.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

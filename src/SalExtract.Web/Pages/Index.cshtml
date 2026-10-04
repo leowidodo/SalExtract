@@ -1,0 +1,31 @@
+@page
+@model SalExtract.Web.Pages.IndexModel
+@using System.Text.Json
+@{ ViewData["Title"] = "Invoice Extraction"; }
+<section class="hero">
+    <span class="eyebrow">ON-PREMISE · OFFLINE · AUDITABLE</span>
+    <h1>Turn invoices into<br/><em>trusted data.</em></h1>
+    <p>Upload PDF invoice supplier. SalExtract membaca teks native atau OCR lokal, menormalisasi field, dan menyimpan audit trail.</p>
+</section>
+<section class="workspace">
+    <form method="post" enctype="multipart/form-data" class="upload-card">
+        <label for="Pdf" class="drop-zone"><span class="file-icon">PDF</span><strong>Pilih invoice PDF</strong><small>Native atau scan · maksimum 25 MB · tidak pernah dikirim ke cloud</small><input asp-for="Pdf" accept="application/pdf,.pdf" /></label>
+        <div id="selected-file" class="selected-file">Belum ada file dipilih</div>
+        <button type="submit">Extract invoice <span>→</span></button>
+    </form>
+    @if (Model.Error is not null) { <div class="alert">@Model.Error</div> }
+    @if (Model.Result is { } result)
+    {
+        var root = result;
+        <div class="result-head"><div><span class="eyebrow">EXTRACTION RESULT</span><h2>@root.GetProperty("fileName").GetString()</h2></div><span class="status @root.GetProperty("status").GetString()?.ToLowerInvariant()">@root.GetProperty("status").GetString()</span></div>
+        <div class="field-grid">
+        @foreach (var property in root.GetProperty("fields").EnumerateObject())
+        {
+            var field = property.Value;
+            <article class="field-card"><div class="field-label">@property.Name</div><div class="field-value">@(field.GetProperty("normalizedValue").GetString() ?? "—")</div><div class="confidence"><i style="width:@(field.GetProperty("confidence").GetDecimal() * 100)%"></i></div><small>@field.GetProperty("method").GetString() · confidence @field.GetProperty("confidence").GetDecimal().ToString("P0")</small>@if (field.TryGetProperty("evidence", out var evidence) && evidence.ValueKind == JsonValueKind.String) { <details><summary>Evidence</summary><code>@evidence.GetString()</code></details> }</article>
+        }
+        </div>
+        <div class="meta">ID @root.GetProperty("id").GetString() · @root.GetProperty("pageCount") page · @root.GetProperty("sourceMethod").GetString() · @root.GetProperty("processingMilliseconds") ms</div>
+    }
+</section>
+@section Scripts { <script>document.getElementById('Pdf').addEventListener('change', e => document.getElementById('selected-file').textContent = e.target.files[0]?.name || 'Belum ada file dipilih');</script> }
