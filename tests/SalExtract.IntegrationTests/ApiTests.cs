@@ -86,4 +86,19 @@ public sealed class ApiTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.Equal("USD", currency.GetProperty("normalizedValue").GetString());
         Assert.Equal("$", currency.GetProperty("rawValue").GetString());
     }
+
+    [Theory]
+    [InlineData("Invoice - Studio Kreatif Imaji.pdf", "088/SK/X", "2026-10-02")]
+    [InlineData("Invoice - Toko Buku Pelangi (Scanned).pdf", null, "2026-09-29")]
+    public async Task Extraction_Recognizes_Reported_Header_Fields(string fileName, string? invoiceNo, string date)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var root = Path.GetFullPath("../../../../../", AppContext.BaseDirectory);
+        var extractor = new PdfDocumentTextExtractor(Options.Create(new ExtractionOptions { TessDataPath = Path.Combine(root, "tools/tessdata") }), NullLogger<PdfDocumentTextExtractor>.Instance);
+        await using var pdf = File.OpenRead(Path.Combine(root, "Samples", fileName));
+        var document = await extractor.ExtractAsync(pdf, CancellationToken.None);
+        var fields = new InvoiceFieldExtractor().Extract(document);
+        Assert.Equal(invoiceNo, fields["InvoiceNo"].NormalizedValue);
+        Assert.Equal(date, fields["InvoiceDate"].NormalizedValue);
+    }
 }

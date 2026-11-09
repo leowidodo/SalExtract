@@ -10,3 +10,5 @@ src/SalExtract.Api/data/
 tests/SalExtract.IntegrationTests/integration-tests.db
 tools/tessdata/*.traineddata
 !tools/tessdata/.gitkeep
+/tmp/
+/outputs/

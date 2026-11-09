@@ -46,6 +46,14 @@ public sealed class PdfDocumentTextExtractor(IOptions<ExtractionOptions> options
                 await using var source = new MemoryStream(bytes);
                 using var bitmap = Conversion.ToImage(source, page: pageNumber - 1, options: new RenderOptions(Dpi: _options.OcrDpi));
                 var text = Recognize(engine, bitmap);
+                using var header = new SKBitmap();
+                if (bitmap.ExtractSubset(header, SKRectI.Create(0, 0, bitmap.Width, bitmap.Height * 45 / 100)))
+                {
+                    // Sparse header recognition recovers invoice metadata hidden by
+                    // table borders, stamps and multi-column layout analysis.
+                    var headerText = Recognize(engine, header, PageSegMode.SparseText);
+                    if (!string.IsNullOrWhiteSpace(headerText)) text = $"{headerText.TrimEnd()}\n{text}";
+                }
                 using var rightHalf = new SKBitmap();
                 var rightHalfBounds = SKRectI.Create(bitmap.Width / 2, 0, bitmap.Width - (bitmap.Width / 2), bitmap.Height);
                 if (bitmap.ExtractSubset(rightHalf, rightHalfBounds))
@@ -54,6 +62,8 @@ public sealed class PdfDocumentTextExtractor(IOptions<ExtractionOptions> options
                     // rightmost total column. A focused pass retains those values and labels.
                     var rightHalfText = Recognize(engine, rightHalf);
                     if (!string.IsNullOrWhiteSpace(rightHalfText)) text = $"{text.TrimEnd()}\n{rightHalfText}";
+                    var sparseRightText = Recognize(engine, rightHalf, PageSegMode.SparseText);
+                    if (!string.IsNullOrWhiteSpace(sparseRightText)) text = $"{text.TrimEnd()}\n{sparseRightText}";
                 }
                 var index = pages.FindIndex(x => x.PageNumber == pageNumber);
                 pages[index] = new DocumentPage(pageNumber, text, "ocr-tesseract");
@@ -68,11 +78,11 @@ public sealed class PdfDocumentTextExtractor(IOptions<ExtractionOptions> options
         return new DocumentContent(pages, method, warnings);
     }
 
-    private static string Recognize(TesseractEngine engine, SKBitmap bitmap)
+    private static string Recognize(TesseractEngine engine, SKBitmap bitmap, PageSegMode mode = PageSegMode.Auto)
     {
         using var encoded = bitmap.Encode(SKEncodedImageFormat.Png, 100);
         using var pix = Pix.LoadFromMemory(encoded.ToArray());
-        using var page = engine.Process(pix, PageSegMode.Auto);
+        using var page = engine.Process(pix, mode);
         return page.GetText() ?? string.Empty;
     }
 
